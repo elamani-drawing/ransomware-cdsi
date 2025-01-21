@@ -9,7 +9,12 @@
 
 #include <windows.h>
   
-// Fonction pour vérifier si un fichier est régulier
+/**
+ * Fonction auxiliaire pour vérifier si un fichier est régulier.
+ *
+ * @param path Chemin du fichier à vérifier.
+ * @return 1 si le fichier est régulier, 0 sinon.
+ */
 int is_regular_file(const char *path) {
     struct stat file_stat;
 
@@ -29,20 +34,39 @@ int is_regular_file(const char *path) {
 }
 
 
-// Fonction pour vérifier si une entrée est un répertoire  
+/**
+ * Fonction auxiliaire pour vérifier si un chemin correspond à un répertoire.
+ *
+ * @param path Chemin à vérifier.
+ * @return 1 si le chemin est un répertoire, 0 sinon.
+ */ 
 int is_directory(const char *path) {
     DWORD attrib = GetFileAttributes(path);
     return (attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
 
-// Fonction pour construire le chemin d'accès complet d'un fichier
+/**
+ * Fonction pour construire le chemin d'accès complet d'un fichier.
+ *
+ * @param directory Chemin du répertoire parent.
+ * @param file Nom du fichier.
+ * @param full_path Buffer pour stocker le chemin complet.
+ * @param size Taille du buffer full_path.
+ */
 void construct_path(const char *directory, const char *file, char *full_path, size_t size) {
     // Assurer que le chemin final ne dépasse pas la taille maximale
     snprintf(full_path, size, "%s\\%s", directory, file);
 }
 
-// Fonction pour lire et encrypter/decrypter un répertoire et ses sous-répertoires
+/**
+ * Fonction pour lire et chiffrer/déchiffrer un répertoire et ses sous-répertoires.
+ *
+ * @param dir_path Chemin du répertoire à parcourir.
+ * @param mode Mode d'opération : 0 pour chiffrer, 1 pour déchiffrer.
+ * @param key Clé de chiffrement/déchiffrement (doit être de taille KEY_SIZE).
+ * @param iv Vecteur d'initialisation (doit être de taille IV_SIZE).
+ */
 void read_and_crypt_directory(const char *dir_path, int mode, unsigned char *key, unsigned char *iv) {
     WIN32_FIND_DATA find_file_data;
     HANDLE hFind;
@@ -96,6 +120,14 @@ void read_and_crypt_directory(const char *dir_path, int mode, unsigned char *key
     FindClose(hFind);
 }
 
+/**
+ * Fonction pour chiffrer un fichier.
+ *
+ * @param input_path Chemin du fichier à chiffrer.
+ * @param key Clé de chiffrement (doit être de taille KEY_SIZE).
+ * @param iv Vecteur d'initialisation (doit être de taille IV_SIZE).
+ * @return 0 en cas de succès, -1 en cas d'erreur.
+ */
 int encrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) {
     FILE *infile = fopen(input_path, "rb");
     if (!infile) {
@@ -229,6 +261,14 @@ int encrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) 
     return 0;
 }
 
+/**
+ * Fonction pour déchiffrer un fichier.
+ *
+ * @param input_path Chemin du fichier à déchiffrer.
+ * @param key Clé de déchiffrement (doit être de taille KEY_SIZE).
+ * @param iv Vecteur d'initialisation (doit être de taille IV_SIZE).
+ * @return 0 en cas de succès, -1 en cas d'erreur, -2 si la clé ou l'IV est incorrect.
+ */
 int decrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) {
     FILE *infile = fopen(input_path, "rb");
     if (!infile) {
