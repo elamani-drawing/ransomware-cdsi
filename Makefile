@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -pedantic -g -I"C:/Program Files/OpenSSL-Win64/include"
 LDFLAGS = -L"C:\Program Files\OpenSSL-Win64\lib\VC\x64\MD" -lcrypto -lssl -static-libgcc
-LDFLAGSORI = -L"C:\Program Files\OpenSSL-Win64\lib\VC\x64\MD" -lcrypto -lssl -static-libgcc
+LDFLAGSORI = -L"C:\Program Files\OpenSSL-Win64\lib\VC\x64\MD" -lcrypto -lssl -static-libgcc -lgdi32 -luser32
 
 SRC = main.c ransomware.c
 OBJ = $(SRC:.c=.o)
@@ -12,7 +12,7 @@ all: $(EXEC)
 
 # Règle pour créer l'exécutable
 $(EXEC): $(OBJ)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGSORI)
 
 # Règle pour compiler les fichiers .o
 %.o: %.c
