@@ -1,6 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -pedantic -g -I"C:/Program Files/OpenSSL-Win64/include"
 LDFLAGS = -L"C:\Program Files\OpenSSL-Win64\lib\VC\x64\MD" -lcrypto -lssl -static-libgcc
+LDFLAGSORI = -L"C:\Program Files\OpenSSL-Win64\lib\VC\x64\MD" -lcrypto -lssl -static-libgcc
 
 SRC = main.c ransomware.c
 OBJ = $(SRC:.c=.o)
@@ -34,5 +35,6 @@ run: $(EXEC)
 	$(EXEC)
 run-enc: $(EXEC)
 	$(EXEC) ./test "0123456789abcdef0123456789abcdef" "abcdef9876543210" 0
+
 run-dec: $(EXEC)
 	$(EXEC) ./test "0123456789abcdef0123456789abcdef" "abcdef9876543210" 1

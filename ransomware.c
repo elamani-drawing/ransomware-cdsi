@@ -96,9 +96,6 @@ void read_and_crypt_directory(const char *dir_path, int mode, unsigned char *key
     FindClose(hFind);
 }
 
-
-
-// Fonction pour chiffrer un fichier avec AES
 int encrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) {
     FILE *infile = fopen(input_path, "rb");
     if (!infile) {
@@ -134,10 +131,69 @@ int encrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) 
         return -1;
     }
 
-    // Lecture, chiffrement et écriture par blocs
+    // Chiffrement de la clé et de l'IV
+    unsigned char encrypted_key[KEY_SIZE + AES_BLOCK_SIZE]; // Taille ajustée pour le padding d'Aes
+    unsigned char encrypted_iv[IV_SIZE + AES_BLOCK_SIZE];   // Taille ajustée pour le padding d'Aes
+    int encrypted_key_len, encrypted_iv_len;
+
+    // Chiffrement de la clé
+    if (EVP_EncryptUpdate(ctx, encrypted_key, &encrypted_key_len, key, KEY_SIZE) != 1) {
+        fprintf(stderr, "Erreur lors du chiffrement de la clé.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        fclose(outfile);
+        return -1;
+    }
+
+    // Finalisation du chiffrement de la clé (pour gérer le padding)
+    int final_len;
+    if (EVP_EncryptFinal_ex(ctx, encrypted_key + encrypted_key_len, &final_len) != 1) {
+        fprintf(stderr, "Erreur lors de la finalisation du chiffrement de la clé.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        fclose(outfile);
+        return -1;
+    }
+    encrypted_key_len += final_len;
+
+    // Réinitialisation du contexte pour chiffrer l'IV
+    EVP_CIPHER_CTX_reset(ctx);
+    if (EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv) != 1) {
+        fprintf(stderr, "Erreur lors de la réinitialisation de l'algorithme AES.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        fclose(outfile);
+        return -1;
+    }
+
+    // Chiffrement de l'IV
+    if (EVP_EncryptUpdate(ctx, encrypted_iv, &encrypted_iv_len, iv, IV_SIZE) != 1) {
+        fprintf(stderr, "Erreur lors du chiffrement de l'IV.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        fclose(outfile);
+        return -1;
+    }
+
+    // Finalisation du chiffrement de l'IV (pour gérer le padding)
+    if (EVP_EncryptFinal_ex(ctx, encrypted_iv + encrypted_iv_len, &final_len) != 1) {
+        fprintf(stderr, "Erreur lors de la finalisation du chiffrement de l'IV.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        fclose(outfile);
+        return -1;
+    }
+    encrypted_iv_len += final_len;
+
+    // Écriture de la clé et de l'IV chiffrés dans le fichier
+    fwrite(&encrypted_key_len, sizeof(int), 1, outfile); // Taille de la clé chiffrée
+    fwrite(&encrypted_iv_len, sizeof(int), 1, outfile);  // Taille de l'IV chiffré
+    fwrite(encrypted_key, 1, encrypted_key_len, outfile);
+    fwrite(encrypted_iv, 1, encrypted_iv_len, outfile);
+
+    // Lecture, chiffrement et écriture du fichier par blocs
     unsigned char buffer_in[BUFFER_SIZE];
-    // Taille ajustée pour le padding
-    unsigned char buffer_out[BUFFER_SIZE + AES_BLOCK_SIZE]; 
+    unsigned char buffer_out[BUFFER_SIZE + AES_BLOCK_SIZE];
     int bytes_read, bytes_encrypted;
 
     while ((bytes_read = fread(buffer_in, 1, sizeof(buffer_in), infile)) > 0) {
@@ -173,7 +229,6 @@ int encrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) 
     return 0;
 }
 
-// Fonction pour déchiffrer un fichier avec AES
 int decrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) {
     FILE *infile = fopen(input_path, "rb");
     if (!infile) {
@@ -183,24 +238,14 @@ int decrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) 
 
     // Préparation du fichier de sortie
     char output_path[1024];
-
-    // Vérifie si l'extension est bien ".enc"
     size_t len = strlen(input_path);
+    // Si le fichier ne posséde pas l'ectention ".enc" on l'ignore
     if (len > 4 && strcmp(input_path + len - 4, ".enc") == 0) {
-        // Retirer ".enc"
         snprintf(output_path, sizeof(output_path), "%.*s", (int)(len - 4), input_path);
     } else {
-        // Si l'extension n'est pas ".enc", ignorer le fichier
         printf("Fichier non chiffré, ignoré avec succès : %s\n", input_path);
         fclose(infile);
-        return 0;  // Ne rien faire, mais ne pas retourner d'erreur
-    }
-
-    FILE *outfile = fopen(output_path, "wb");
-    if (!outfile) {
-        perror("Erreur lors de l'ouverture du fichier de sortie");
-        fclose(infile);
-        return -1;
+        return 0;
     }
 
     // Initialisation du contexte de déchiffrement
@@ -208,21 +253,114 @@ int decrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) 
     if (!ctx) {
         fprintf(stderr, "Erreur d'initialisation du contexte AES.\n");
         fclose(infile);
-        fclose(outfile);
         return -1;
     }
 
-    // Initialisation de l'algorithme AES en mode CBC
+    // Lecture des tailles de la clé et de l'IV chiffrés
+    int encrypted_key_len, encrypted_iv_len;
+    if (fread(&encrypted_key_len, sizeof(int), 1, infile) != 1) {
+        fprintf(stderr, "Erreur lors de la lecture de la taille de la clé chiffrée.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        return -1;
+    }
+    if (fread(&encrypted_iv_len, sizeof(int), 1, infile) != 1) {
+        fprintf(stderr, "Erreur lors de la lecture de la taille de l'IV chiffré.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        return -1;
+    }
+
+    // Lecture de la clé et de l'IV chiffrés
+    unsigned char encrypted_key[encrypted_key_len];
+    unsigned char encrypted_iv[encrypted_iv_len];
+    if (fread(encrypted_key, 1, (size_t)encrypted_key_len, infile) != (size_t)encrypted_key_len) {
+        fprintf(stderr, "Erreur lors de la lecture de la clé chiffrée.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        return -1;
+    }
+    if (fread(encrypted_iv, 1, (size_t)encrypted_iv_len, infile) != (size_t)encrypted_iv_len) {
+        fprintf(stderr, "Erreur lors de la lecture de l'IV chiffré.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        return -1;
+    }
+
+    // Déchiffrement de la clé
+    unsigned char decrypted_key[KEY_SIZE];
+    int decrypted_key_len;
     if (EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv) != 1) {
         fprintf(stderr, "Erreur lors de l'initialisation de l'algorithme AES.\n");
         EVP_CIPHER_CTX_free(ctx);
         fclose(infile);
-        fclose(outfile);
         return -1;
     }
 
-    // Lecture, déchiffrement et écriture par blocs
-    unsigned char buffer_in[BUFFER_SIZE + AES_BLOCK_SIZE]; // Taille ajustée pour le padding
+    if (EVP_DecryptUpdate(ctx, decrypted_key, &decrypted_key_len, encrypted_key, encrypted_key_len) != 1) {
+        fprintf(stderr, "Erreur lors du déchiffrement de la clé.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        return -1;
+    }
+
+    // Finalisation du déchiffrement de la clé
+    int final_len;
+    if (EVP_DecryptFinal_ex(ctx, decrypted_key + decrypted_key_len, &final_len) != 1) {
+        fprintf(stderr, "Erreur lors de la finalisation du déchiffrement de la clé.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        return -1;
+    }
+    decrypted_key_len += final_len;
+
+    // Réinitialisation du contexte pour déchiffrer l'IV
+    EVP_CIPHER_CTX_reset(ctx);
+    if (EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv) != 1) {
+        fprintf(stderr, "Erreur lors de la réinitialisation de l'algorithme AES.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        return -1;
+    }
+
+    // Déchiffrement de l'IV
+    unsigned char decrypted_iv[IV_SIZE];
+    int decrypted_iv_len;
+    if (EVP_DecryptUpdate(ctx, decrypted_iv, &decrypted_iv_len, encrypted_iv, encrypted_iv_len) != 1) {
+        fprintf(stderr, "Erreur lors du déchiffrement de l'IV.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        return -1;
+    }
+
+    // Finalisation du déchiffrement de l'IV
+    if (EVP_DecryptFinal_ex(ctx, decrypted_iv + decrypted_iv_len, &final_len) != 1) {
+        fprintf(stderr, "Erreur lors de la finalisation du déchiffrement de l'IV.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        return -1;
+    }
+    decrypted_iv_len += final_len;
+
+    // Comparaison de la clé et de l'IV déchiffrés avec ceux passés en argument
+    if (memcmp(decrypted_key, key, KEY_SIZE) != 0 || memcmp(decrypted_iv, iv, IV_SIZE) != 0) {
+        fprintf(stderr, "La clé ou l'IV ne correspond pas. Annulation du déchiffrement.\n");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        return -2; // Code d'erreur pour clé/IV incorrects
+    }
+
+    // Ouverture du fichier de sortie
+    FILE *outfile = fopen(output_path, "wb");
+    if (!outfile) {
+        perror("Erreur lors de l'ouverture du fichier de sortie");
+        EVP_CIPHER_CTX_free(ctx);
+        fclose(infile);
+        return -1;
+    }
+
+    // Lecture, déchiffrement et écriture du fichier par blocs
+    unsigned char buffer_in[BUFFER_SIZE + AES_BLOCK_SIZE];
     unsigned char buffer_out[BUFFER_SIZE];
     int bytes_read, bytes_decrypted;
 
