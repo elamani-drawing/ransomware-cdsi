@@ -18,6 +18,11 @@ void add_to_startup(const char *exe_path);
 
 // Fonction principale
 int main() {
+
+    // Configure la console en UTF-8
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+
     // Calcul de la fin du chrono (24 heures)
     time_t now = time(NULL);
     end_time = now + 24 * 60 * 60;
