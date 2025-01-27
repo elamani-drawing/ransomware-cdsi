@@ -436,3 +436,110 @@ int decrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) 
     printf("Fichier déchiffré avec succès : %s\n", output_path);
     return 0;
 }
+
+
+/**
+ * @brief Supprime un fichier ou un répertoire spécifié.
+ * 
+ * Cette fonction vérifie si le chemin donné représente un fichier ou un répertoire.
+ * - Si c'est un fichier, il est supprimé.
+ * - Si c'est un répertoire, la fonction supprime d'abord tous les fichiers et sous-répertoires à l'intérieur du répertoire de manière récursive, puis supprime le répertoire vide.
+ * 
+ * @param path Le chemin du fichier ou répertoire à supprimer. Ce chemin doit être un chemin absolu valide.
+ * 
+ * @note Si un fichier ou un répertoire est verrouillé ou en cours d'utilisation par un autre processus, la suppression échouera.
+ */
+void removeFileOrDirectory(const char *path) {
+    DWORD file_attributes = GetFileAttributes(path);
+    if (file_attributes == INVALID_FILE_ATTRIBUTES) {
+        printf("Erreur : le fichier ou répertoire %s n'existe pas.\n", path);
+        return;
+    }
+
+    // Si c'est un fichier, on le supprime
+    if (!(file_attributes & FILE_ATTRIBUTE_DIRECTORY)) {
+        if (DeleteFile(path)) {
+            // printf("Le fichier %s a été supprimé avec succès.\n", path);
+        } else {
+            printf("Échec de la suppression du fichier %s.\n", path);
+        }
+    }
+    // Si c'est un répertoire
+    else {
+        // Créer un handle pour le répertoire
+        WIN32_FIND_DATA find_file_data;
+        char search_path[MAX_PATH];
+        snprintf(search_path, sizeof(search_path), "%s\\*", path); // S'assurer que le chemin est bien formé
+
+        HANDLE hFind = FindFirstFile(search_path, &find_file_data);
+        
+        if (hFind == INVALID_HANDLE_VALUE) {
+            printf("Erreur : impossible d'ouvrir le répertoire %s.\n", path);
+            return;
+        }
+
+        // Ignorer le "." et ".." pour ne pas supprimer ces répertoires spéciaux
+        do {
+            const char *file_or_dir = find_file_data.cFileName;
+            char full_path[MAX_PATH];
+            snprintf(full_path, sizeof(full_path), "%s\\%s", path, file_or_dir);
+
+            // Appel récursif pour supprimer les fichiers ou sous-répertoires
+            if (strcmp(file_or_dir, ".") != 0 && strcmp(file_or_dir, "..") != 0) {
+                removeFileOrDirectory(full_path);
+            }
+        } while (FindNextFile(hFind, &find_file_data));
+
+        // Fermeture du handle et suppression du répertoire vide
+        FindClose(hFind);
+        if (RemoveDirectory(path)) {
+            // printf("Le répertoire %s a été supprimé avec succès.\n", path);
+        } else {
+            printf("Échec de la suppression du répertoire %s.\n", path);
+        }
+    }
+}
+
+/**
+ * Fonction de rappel (callback) appelée lorsque le timer atteint son délai.
+ * Cette fonction tente de supprimer le fichier spécifié.
+ *
+ * @param lpArg Pointeur vers le chemin du fichier à supprimer.
+ * @param dwTimerLowValue Valeur basse du timer.
+ * @param dwTimerHighValue Valeur haute du timer.
+ */
+void CALLBACK TimerCallback(LPVOID lpArg, DWORD dwTimerLowValue, DWORD dwTimerHighValue) {
+    const char *file_path = (const char *)lpArg; 
+    // printf("\nSignal reçu : suppression du fichier en cours...\n"); 
+    removeFileOrDirectory(file_path);
+}
+
+/**
+ * Fonction pour planifier la suppression d'un fichier après un délai spécifié.
+ * Un timer Windows est utilisé pour appeler la fonction de suppression après le délai.
+ *
+ * @param file_path Chemin du fichier à supprimer.
+ * @param wait_time_seconds Délai en secondes avant que le fichier soit supprimé.
+ */
+void scheduleFileDeletion(const char *file_path, int wait_time_seconds) {
+    // Création d'un timer unique
+    HANDLE timer = CreateWaitableTimer(NULL, FALSE, NULL);
+    if (!timer) {
+        printf("Erreur : impossible de créer le timer.\n");
+        return;
+    }
+
+    // Configurer le délai en secondes (convertir en 100 nanosecondes)
+    LARGE_INTEGER due_time;
+    due_time.QuadPart = -(LONGLONG)wait_time_seconds * 10000000LL; // Conversion en 100 ns
+    // printf("Temps d'attente : %lld LL\n", due_time.QuadPart);
+    // Configurer le timer pour appeler une fonction callback 
+    if (!SetWaitableTimer(timer, &due_time, 0, TimerCallback, (LPVOID)file_path, FALSE)) {
+        printf("Erreur : impossible de configurer le timer.\n");
+        CloseHandle(timer);
+        return;
+    }
+
+    // Libération des ressources (jamais atteinte ici)
+    CloseHandle(timer);
+}

