@@ -510,7 +510,7 @@ void removeFileOrDirectory(const char *path) {
  */
 void CALLBACK TimerCallback(LPVOID lpArg, DWORD dwTimerLowValue, DWORD dwTimerHighValue) {
     const char *file_path = (const char *)lpArg; 
-    // printf("\nSignal reçu : suppression du fichier en cours...\n"); 
+    printf("\nSignal reçu : suppression du fichier en cours... %s\n", file_path); 
     removeFileOrDirectory(file_path);
 }
 
@@ -532,7 +532,7 @@ void scheduleFileDeletion(const char *file_path, int wait_time_seconds) {
     // Configurer le délai en secondes (convertir en 100 nanosecondes)
     LARGE_INTEGER due_time;
     due_time.QuadPart = -(LONGLONG)wait_time_seconds * 10000000LL; // Conversion en 100 ns
-    // printf("Temps d'attente : %lld LL\n", due_time.QuadPart);
+    printf("Temps d'attente : %lld LL\n", due_time.QuadPart);
     // Configurer le timer pour appeler une fonction callback 
     if (!SetWaitableTimer(timer, &due_time, 0, TimerCallback, (LPVOID)file_path, FALSE)) {
         printf("Erreur : impossible de configurer le timer.\n");

