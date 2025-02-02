@@ -27,7 +27,7 @@ int encrypt_file(const char *input_path, unsigned char *key, unsigned char *iv);
  * @param input_path Chemin du fichier à déchiffrer.
  * @param key Clé de déchiffrement (doit être de taille KEY_SIZE).
  * @param iv Vecteur d'initialisation (doit être de taille IV_SIZE).
- * @return 0 en cas de succès, -1 en cas d'erreur, -2 si la clé ou l'IV est incorrect.
+ * @return 0 en cas de succès, -1 en cas d'erreur, -2 si la clé ou l'IV est incorrect, -3 si le fichier n'est pas chiffré.
  */
 int decrypt_file(const char *input_path, unsigned char *key, unsigned char *iv);
 
@@ -38,8 +38,10 @@ int decrypt_file(const char *input_path, unsigned char *key, unsigned char *iv);
  * @param mode Mode d'opération : 0 pour chiffrer, 1 pour déchiffrer.
  * @param key Clé de chiffrement/déchiffrement (doit être de taille KEY_SIZE).
  * @param iv Vecteur d'initialisation (doit être de taille IV_SIZE).
+ * @return Si déchiffrement, retourne 0 si au moins un fichier a été déchiffré avec succès, -2 sinon.
+           Si chiffrement, retourne 0 quoi qu'il arrive
  */
-void read_and_crypt_directory(const char *dir_path, int mode, unsigned char *key, unsigned char *iv);
+int read_and_crypt_directory(const char *dir_path, int mode, unsigned char *key, unsigned char *iv);
 
 /**
  * Fonction auxiliaire pour vérifier si un fichier est régulier.

