@@ -66,8 +66,8 @@ void construct_path(const char *directory, const char *file, char *full_path, si
  * @param mode Mode d'opération : 0 pour chiffrer, 1 pour déchiffrer.
  * @param key Clé de chiffrement/déchiffrement (doit être de taille KEY_SIZE).
  * @param iv Vecteur d'initialisation (doit être de taille IV_SIZE).
- * @return Si déchiffrement, retourne 0 si au moins un fichier a été déchiffré avec succès, -2 sinon.
-           Si chiffrement, retourne 0 quoi qu'il arrive
+ * @return Si déchiffrement (mode==1), retourne 0 si au moins un fichier a été déchiffré avec succès, -2 si aucun fichier n'est déchiffré, -1 si une erreur est detecte.
+           Si chiffrement (mode==0), retourne -1 si une erreur est détecté, sinon retourne 0 quoi qu'il arrive
  */
 int  read_and_crypt_directory(const char *dir_path, int mode, unsigned char *key, unsigned char *iv) {
     WIN32_FIND_DATA find_file_data;

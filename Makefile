@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -pedantic -g -I"C:/Program Files/OpenSSL-Win64/include"
-LDFLAGS = -L"C:\Program Files\OpenSSL-Win64\lib\VC\x64\MD" -lcrypto -lssl -static-libgcc
+LDFLAGS = -L"C:\Program Files\OpenSSL-Win64\lib\VC\x64\MD" -lcrypto -lssl -static-libgcc -lgdi32 -luser32
 LDFLAGSORI = -L"C:\Program Files\OpenSSL-Win64\lib\VC\x64\MD" -lcrypto -lssl -static-libgcc -lgdi32 -luser32
 
 SRC = main.c ransomware.c

