@@ -160,7 +160,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     MessageBox(hwnd, "Fichiers déchiffrés avec succès !", "Succès", MB_OK | MB_ICONINFORMATION);
                     PostQuitMessage(0); // Quitter le programme
                 } else {
-                    MessageBox(hwnd, "Clé incorrecte. Veuillez réessayer.", "Erreur", MB_OK | MB_ICONERROR);  
+                    MessageBox(hwnd, "Clé incorrecte. Veuillez réessayer.", "Erreur", MB_OK | MB_ICONERROR);   
                 }
             }
             break;

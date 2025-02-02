@@ -140,7 +140,7 @@ int  read_and_crypt_directory(const char *dir_path, int mode, unsigned char *key
  * @param input_path Chemin du fichier à chiffrer.
  * @param key Clé de chiffrement (doit être de taille KEY_SIZE).
  * @param iv Vecteur d'initialisation (doit être de taille IV_SIZE).
- * @return 0 en cas de succès, -1 en cas d'erreur.
+ * @return 0 en cas de succès, -1 en cas d'erreur, -2 si le fichier est déjà encrypter
  */
 int encrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) {
     FILE *infile = fopen(input_path, "rb");
@@ -148,6 +148,14 @@ int encrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) 
         perror("Erreur lors de l'ouverture du fichier d'entrée");
         return -1;
     }
+    
+    size_t len = strlen(input_path);
+    // Si le fichier posséde l'extention ".enc" on l'ignore
+    if (len > 4 && strcmp(input_path + len - 4, ".enc") == 0) {
+        printf("Fichier non chiffré, déjà chiffré! Ignoré avec succès : %s\n", input_path);
+        fclose(infile);
+        return -3;
+    } 
 
     // Préparation du fichier de sortie
     char output_path[1024];
@@ -289,7 +297,6 @@ int decrypt_file(const char *input_path, unsigned char *key, unsigned char *iv) 
         perror("Erreur lors de l'ouverture du fichier d'entrée");
         return -1;
     }
-    printf("cle: %s\n", key);
 
     // Préparation du fichier de sortie
     char output_path[1024];

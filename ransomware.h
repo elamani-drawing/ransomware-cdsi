@@ -17,7 +17,7 @@
  * @param input_path Chemin du fichier à chiffrer.
  * @param key Clé de chiffrement (doit être de taille KEY_SIZE).
  * @param iv Vecteur d'initialisation (doit être de taille IV_SIZE).
- * @return 0 en cas de succès, -1 en cas d'erreur.
+ * @return 0 en cas de succès, -1 en cas d'erreur, -2 si le fichier est déjà encrypter
  */
 int encrypt_file(const char *input_path, unsigned char *key, unsigned char *iv);
 
