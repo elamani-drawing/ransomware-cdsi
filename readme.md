@@ -76,3 +76,13 @@ Ce projet est fourni à **des fins éducatives uniquement**.
 L'auteur décline toute responsabilité pour toute utilisation malveillante ou illégale de ce code.  
 
 **Utilisez ce projet à vos propres risques et dans un environnement contrôlé.**
+
+# 📦 Distribution du programme
+Pour distribuer le programme sur d'autres machines, veuillez suivre les étapes suivantes :
+
+1. Placer le fichier .exe dans le dossier shareable :
+
+        Le dossier shareable contient toutes les DLLs nécessaires au bon fonctionnement du programme. Assurez-vous de placer votre fichier .exe dans ce dossier afin qu'il puisse accéder aux dépendances nécessaires.
+2. Installer les runtimes Microsoft Visual C++ Redistributables :
+
+        Le programme nécessite les Microsoft Visual C++ Redistributables pour fonctionner correctement. Vous trouverez les installateurs dans le dossier shareable. Exécutez simplement les fichiers .exe correspondants pour installer les runtimes requis.
